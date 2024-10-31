@@ -96,9 +96,9 @@ app.post("/login" , async (req , res) => {
     const userInfo = await User.findOne({email : email});
 
     if(!userInfo) {
-        res.status(400).json({
+        return res.status(400).json({
             error : true,
-            message : "User already Exist"
+            message : "User does not Exist"
         })
     }
 
@@ -146,7 +146,8 @@ app.get("/getUser" , authenticateToken , async (req ,res) => {
 
 //Add a Note
 app.post("/addNotes", authenticateToken, async (req, res) => {
-    const { title, content, tag } = req.body;
+    console.log(req.body)
+    const { title, content, tags } = req.body;
     
     // Ensure user is attached to req from the authenticateToken middleware
     const user = req.user;
@@ -164,18 +165,25 @@ app.post("/addNotes", authenticateToken, async (req, res) => {
             message: "Content is required"
         });
     }
+    if (!tags) {
+        return res.status(400).json({
+            error: true,
+            message: "tag is required"
+        });
+    }
 
     try {
         const note = new Note({
             title,
             content,
-            tag: tag || [],
+            tags: tags ? tags : [],
             userId: user.user._id // Setting userId from req.user._id
         });
         await note.save();
 
         return res.json({
             error: false,
+            note,
             message: "Note added successfully",
         });
     } catch (error) {
@@ -189,7 +197,7 @@ app.post("/addNotes", authenticateToken, async (req, res) => {
 //Edit a Note
 app.put("/editNotes/:noteId" , authenticateToken , async (req , res) => {
     const noteId = req.params.noteId;
-    const {title , content , tag , isPinned } = req.body;
+    const {title , content , tags , isPinned } = req.body;
     const {user} = req.user;
 
     if(!title && !content ) {
@@ -211,13 +219,14 @@ app.put("/editNotes/:noteId" , authenticateToken , async (req , res) => {
 
         if(title) note.title = title;
         if(content) note.content = content;
-        if(tag) note.tag = tag;
+        if(tags) note.tags = tags;
         if(isPinned) note.isPinned = isPinned;
 
         await note.save();
 
         return res.json({
             error: false,
+            note,
             message: "Edited succesfully"
         })
     } catch (error) {
@@ -255,7 +264,7 @@ app.get("/getAllNote" , authenticateToken , async (req , res) => {
 //delete a note
 app.delete("/deleteNotes/:noteId" , authenticateToken , async (req ,res) => {
     const noteId = req.params.noteId;
-    // const {title , content , tag , isPinned } = req.body;
+    // const {title , content , tags , isPinned } = req.body;
     const { user } = req.user;
 
     try{
@@ -275,6 +284,7 @@ app.delete("/deleteNotes/:noteId" , authenticateToken , async (req ,res) => {
 
         return res.json({
             error: false,
+            note,
             message:"Note successfully deleted"
         })
     } catch (error){
@@ -288,7 +298,7 @@ app.delete("/deleteNotes/:noteId" , authenticateToken , async (req ,res) => {
 //update isPinned
 app.put("/updateNotesPinned/:noteId" , authenticateToken , async (req ,res) => {
     const noteId = req.params.noteId;
-    const {isPinned } = req.body;
+    const { isPinned } = req.body;
     const {user} = req.user;
 
     try{
@@ -307,6 +317,7 @@ app.put("/updateNotesPinned/:noteId" , authenticateToken , async (req ,res) => {
 
         return res.json({
             error: false,
+            note,
             message: "Edited succesfully"
         })
     } catch (error) {
@@ -314,6 +325,40 @@ app.put("/updateNotesPinned/:noteId" , authenticateToken , async (req ,res) => {
             error: true,
             message: "Internal server error"
         });
+    }
+})
+
+//search a note
+app.get("/searchNotes" , authenticateToken , async (req ,res) => {
+    const { user } = req.user;
+    const { query } = req.query;
+
+    if(!query) {
+        return res.status(400).json({
+            error:true , message: "Search query is required"
+        })
+    }
+
+    try{
+        const matchingNotes = await Note.find({
+            userId: user._id,
+            $or: [
+                {title: {$regex: new RegExp(query, "i") } },
+                {content: {$regex: new RegExp(query, "i") } },
+            ],
+        })
+
+        return res.json({
+            error: false,
+            notes: matchingNotes,
+            message: "Notes matching the search query retrived succesfully"
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            error:true,
+            message: "Internal server error"
+        })
     }
 })
 

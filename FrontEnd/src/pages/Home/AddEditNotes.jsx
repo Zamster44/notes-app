@@ -1,13 +1,14 @@
 import { useState } from "react"
 import TagInput from "../../components/Input/TagInput"
 import { MdClose } from "react-icons/md";
+import axoisInstance from "../../utils/axoisInstance";
 
 
-const AddEditNotes = ({onClose , type , noteData}) => {
+const AddEditNotes = ({onClose , type , noteData , getAllNotes , handleOpenToast}) => {
 
-    const [title, setTitle] = useState("");
-    const [content, setContent] = useState("");
-    const [tags, setTags] = useState([])
+    const [title, setTitle] = useState( noteData?.title ||"");
+    const [content, setContent] = useState(noteData?.content || "");
+    const [tags, setTags] = useState(noteData?.tags || [])
     const [error , setError] = useState("");
 
     const handleAddNote = () => {
@@ -17,6 +18,10 @@ const AddEditNotes = ({onClose , type , noteData}) => {
         }
         else if(!content) {
             setError("Please enter content")
+            return
+        }
+        else if(!tags) {
+            setError("Please enter tags")
             return
         }
         setError("");
@@ -29,8 +34,53 @@ const AddEditNotes = ({onClose , type , noteData}) => {
         }
     }
 
-    const addNewNotes = () => {}
-    const editNotes = () => {}
+    const addNewNotes = async () => {
+        try{
+            const response = await axoisInstance.post("/addNotes" ,{
+                title,
+                content,
+                tags
+            })
+
+            if(response.data && response.data.note) {
+                handleOpenToast("Note Added Successfully")
+                getAllNotes();
+                onClose();
+            }
+        } catch (error) {
+            if(
+                error.response && 
+                error.response.data && 
+                error.response.data.message
+            ) {
+                setError(error.response.data.message);
+            }
+        }
+    }
+    const editNotes = async () => {
+        const noteId = noteData._id;
+        try{
+            const response = await axoisInstance.put("/editNotes/" + noteId ,{
+                title,
+                content,
+                tags
+            })
+
+            if(response.data && response.data.note) {
+                handleOpenToast("Note Updated Successfully")
+                getAllNotes();
+                onClose();
+            }
+        } catch (error) {
+            if(
+                error.response && 
+                error.response.data && 
+                error.response.data.message
+            ) {
+                setError(error.response.data.message);
+            }
+        }
+    }
 
     return (
         <div className="relative">
@@ -74,7 +124,7 @@ const AddEditNotes = ({onClose , type , noteData}) => {
             )}
 
             <button className="btn-primary font-medium p-3 mt-5" onClick={() => { handleAddNote()}}>
-                ADD
+                {type === 'edit' ? "UPDATE" : "ADD"} 
             </button>
         </div>
     )

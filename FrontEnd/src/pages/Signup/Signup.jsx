@@ -1,11 +1,15 @@
 import { Navbar } from "../../components/Navbar/Navbar"
-import { Link } from "react-router-dom"
+import { Link , useNavigate } from "react-router-dom"
 import { PasswordInput } from "../../components/Input/PasswordInput"
 import { useState } from "react"
 import { validateEmail  } from "../../utils/helper"
+import axoisInstance from "../../utils/axoisInstance"
 
 export const Signup = () => {
-  const handleSignup = (e) => {
+
+  const navigate = useNavigate();
+
+  const handleSignup = async (e) => {
     e.preventDefault();
 
     if(!name){
@@ -24,6 +28,31 @@ export const Signup = () => {
     }
 
     setError("")
+
+    //api 
+    try {
+      const response = await axoisInstance.post("/create-account" , {
+        fullName : name,
+        email : email,
+        password: password
+      })
+
+      if(response.data && response.data.error){
+        setError(response.data.message);
+        return;
+      }
+
+      if(response.data && response.data.accessToken){
+        localStorage.setItem("token" , response.data.accessToken)
+        navigate('/dashboard')
+      }
+    } catch (error) {
+      if(error.response && error.response.data && error.response.data.message){
+        setError(error.response.data.message);
+      } else{
+        setError("An unexpected error occured")
+      }
+    }
 
   }
 
